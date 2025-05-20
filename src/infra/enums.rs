@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::infra::models::{AcessRoom, CreateRoom, User, UserMessage};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]

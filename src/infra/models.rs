@@ -1,14 +1,13 @@
-use std::sync::Arc;
+use crate::infra::enums::{Action, ResType};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::WebSocketStream;
 use uuid::Uuid;
-use crate::infra::enums::{Action, ResType};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct User {
     pub name: String,
     pub uuid: Option<String>,
@@ -16,18 +15,17 @@ pub struct User {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMessage {
+    pub user: Option<User>,
     pub message: String,
     pub datetime: String,
     pub room: String,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaseRoomInfo {
     pub code: String,
     pub name: String,
     pub created_by: User,
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,7 +33,6 @@ pub struct CreateRoom {
     pub base_info: BaseRoomInfo,
     pub password: Option<String>,
     pub public: bool,
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,14 +46,12 @@ pub struct Room {
     pub info: CreateRoom,
     pub messages: Vec<UserMessage>,
     pub users: Vec<User>,
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateRoomInfo {
     pub base_info: BaseRoomInfo,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerResponse {
