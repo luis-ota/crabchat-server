@@ -1,11 +1,5 @@
 use crate::infra::enums::{Action, ResType};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-use tokio_tungstenite::WebSocketStream;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct User {
@@ -33,6 +27,12 @@ pub struct CreateRoom {
     pub base_info: BaseRoomInfo,
     pub password: Option<String>,
     pub public: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteRoom {
+    pub room: String,
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

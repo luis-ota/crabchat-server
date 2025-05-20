@@ -1,8 +1,9 @@
 mod infra;
 
-use crate::infra::enums::{Action, IncomingMessage, ResType};
+use crate::infra::enums::{Action, BroadCastMessage, IncomingMessage, ResType};
 use crate::infra::models::{BaseRoomInfo, Room, ServerResponse, User, UserMessage};
 use anyhow::Result;
+use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use infra::models::CreateRoom;
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let users = Arc::new(Mutex::new(HashMap::<
+    let users_ws_steams = Arc::new(Mutex::new(HashMap::<
         Uuid,
         (User, Arc<Mutex<WebSocketStream<TcpStream>>>),
     >::new()));
@@ -26,7 +27,7 @@ async fn main() -> Result<()> {
     println!("WebSocket server started on ws://{}", addr);
 
     while let Ok((stream, _)) = listener.accept().await {
-        let users = users.clone();
+        let users = users_ws_steams.clone();
         let rooms = rooms.clone();
         tokio::spawn(handle_connection(stream, users, rooms));
     }
@@ -36,7 +37,7 @@ async fn main() -> Result<()> {
 
 async fn handle_connection(
     stream: TcpStream,
-    users: Arc<Mutex<HashMap<Uuid, (User, Arc<Mutex<WebSocketStream<TcpStream>>>)>>>,
+    users_ws_streams: Arc<Mutex<HashMap<Uuid, (User, Arc<Mutex<WebSocketStream<TcpStream>>>)>>>,
     rooms: Arc<Mutex<HashMap<String, Room>>>,
 ) -> Result<()> {
     let ws_stream = Arc::new(Mutex::new(accept_async(stream).await?));
@@ -51,26 +52,32 @@ async fn handle_connection(
             match serde_json::from_str::<IncomingMessage>(&text) {
                 Ok(IncomingMessage::User(user)) => {
                     println!("WebSocket connection established for user: {:?}", user);
+
                     ref_user.clone().name = user.name.clone();
-                    users
+                    users_ws_streams
                         .lock()
                         .await
-                        .insert(uuid.clone(), (user, ws_stream.clone()));
+                        .insert(uuid.clone(), (ref_user.clone(), ws_stream.clone()));
                     let avaliable_rooms: Vec<_> = rooms
                         .lock()
                         .await
                         .values()
                         .clone()
                         .filter(|r| r.info.public)
-                        .map(|r| r.info.clone())
+                        .map(|r| CreateRoom {
+                            base_info: r.info.base_info.clone(),
+                            password: None,
+                            public: r.info.public,
+                        })
                         .collect();
 
-                    let json = serde_json::to_string(&avaliable_rooms).expect("serialize rooms");
+                    let avaliable_rooms_json =
+                        serde_json::to_string(&avaliable_rooms).expect("serialize rooms");
 
                     ws_stream
                         .lock()
                         .await
-                        .send(Message::from(json))
+                        .send(Message::from(avaliable_rooms_json))
                         .await
                         .expect("send initials info");
                 }
@@ -80,7 +87,7 @@ async fn handle_connection(
                     let new_room = Room {
                         info: room.clone(),
                         messages: Vec::new(),
-                        users: vec![room.clone().base_info.created_by.clone()],
+                        users: vec![ref_user.clone()],
                     };
 
                     rooms
@@ -88,17 +95,16 @@ async fn handle_connection(
                         .await
                         .insert(room.base_info.code.clone(), new_room);
 
-                    let res = ServerResponse {
-                        for_action: Action::CreateRoom,
-                        res_type: ResType::Success,
-                        message: "Room created successfully".to_string(),
-                    };
-
                     ws_stream
                         .lock()
                         .await
                         .send(Message::from(
-                            serde_json::to_string(&res).expect("serialize rooms"),
+                            serde_json::to_string(&ServerResponse {
+                                for_action: Action::CreateRoom,
+                                res_type: ResType::Success,
+                                message: "Room created successfully".to_string(),
+                            })
+                            .expect("serialize rooms"),
                         ))
                         .await
                         .expect("Fails to send initils info");
@@ -152,7 +158,31 @@ async fn handle_connection(
 
                 Ok(IncomingMessage::UserMessage(mut user_message)) => {
                     user_message.user = Some(ref_user.clone());
-                    let room = rooms.lock().await.get(&user_message.room).unwrap().clone();
+                    user_message.datetime = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
+                    let room: Room = rooms.lock().await.get(&user_message.room).unwrap().clone();
+                    room.clone().messages.push(user_message.clone());
+                    broadcast(
+                        users_ws_streams.clone(),
+                        room.users.clone(),
+                        BroadCastMessage::UserMessage(user_message.clone()),
+                    )
+                    .await;
+                }
+
+                Ok(IncomingMessage::DeleteRoom(delete_room)) => {
+                    let deleted_room: Room = rooms.lock().await.remove(&delete_room.room).unwrap();
+                    broadcast(
+                        users_ws_streams.clone(),
+                        deleted_room.users.clone(),
+                        BroadCastMessage::UserMessage(UserMessage {
+                            user: Some(ref_user.clone()),
+                            message: "room deleted".to_owned(),
+                            datetime: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+                            room: delete_room.room.clone(),
+                        }),
+                    )
+                    .await;
                 }
 
                 Err(e) => {
@@ -179,9 +209,32 @@ async fn handle_connection(
 }
 
 async fn broadcast(
-    users: Arc<Mutex<HashMap<Uuid, (User, Arc<Mutex<WebSocketStream<TcpStream>>>)>>>,
-    room: Arc<Mutex<Room>>,
-    message: UserMessage,
+    users_ws_streams: Arc<Mutex<HashMap<Uuid, (User, Arc<Mutex<WebSocketStream<TcpStream>>>)>>>,
+    users_to_bc: Vec<User>,
+    message: BroadCastMessage,
 ) {
-    let users_in_room = users.lock().await;
+    match message {
+        BroadCastMessage::UserMessage(user_message) => {
+            for user in users_to_bc {
+                let ws_stream = users_ws_streams
+                    .lock()
+                    .await
+                    .get(&Uuid::parse_str(&user.uuid.unwrap()).unwrap())
+                    .unwrap()
+                    .1
+                    .clone();
+                let message =
+                    serde_json::to_string(&user_message).expect("serialize message on broadcast");
+                ws_stream
+                    .lock()
+                    .await
+                    .send(Message::from(message))
+                    .await
+                    .expect("broadcast message");
+            }
+        }
+        BroadCastMessage::ServerMessage(_server_message) => {
+            todo!("Implement ServerMessage broadcast")
+        }
+    }
 }
