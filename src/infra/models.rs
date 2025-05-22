@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use crate::infra::enums::{Action, ResType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct User {
     pub name: String,
-    pub uuid: Option<String>,
+    pub uuid: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,10 +44,15 @@ pub struct AcessRoom {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LeaveRoom {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Room {
     pub info: CreateRoom,
     pub messages: Vec<UserMessage>,
-    pub users: Vec<User>,
+    pub users: HashMap<String, User>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

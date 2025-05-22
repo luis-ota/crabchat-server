@@ -1,7 +1,7 @@
 mod infra;
 
-use crate::infra::enums::{Action, BroadCastMessage, IncomingMessage, ResType};
-use crate::infra::models::{BaseRoomInfo, Room, ServerResponse, User, UserMessage};
+use crate::infra::enums::{Action, IncomingMessage, ResType};
+use crate::infra::models::{Room, ServerResponse, User, UserMessage};
 use anyhow::Result;
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
@@ -44,7 +44,7 @@ async fn handle_connection(
     let uuid = Uuid::new_v4();
     let ref_user: User = User {
         name: String::new(),
-        uuid: Some(uuid.to_string()),
+        uuid: uuid.to_string(),
     };
 
     while let Some(msg) = ws_stream.lock().await.next().await {
@@ -84,10 +84,12 @@ async fn handle_connection(
 
                 Ok(IncomingMessage::CreateRoom(room)) => {
                     println!("Received room: {:?}", room);
+                    let mut users = HashMap::new();
+                    users.insert(ref_user.uuid.clone(), ref_user.clone());
                     let new_room = Room {
                         info: room.clone(),
                         messages: Vec::new(),
-                        users: vec![ref_user.clone()],
+                        users: users.clone(),
                     };
 
                     rooms
@@ -115,7 +117,9 @@ async fn handle_connection(
 
                     let mut acess_room: Room = rooms.lock().await.get(&room.code).unwrap().clone();
                     if acess_room.info.password.eq(&room.password) {
-                        acess_room.users.push(ref_user.clone());
+                        acess_room
+                            .users
+                            .insert(ref_user.uuid.clone(), ref_user.clone());
 
                         ws_stream
                             .lock()
@@ -155,17 +159,35 @@ async fn handle_connection(
                             .expect("Fails to send server res");
                     }
                 }
+                Ok(IncomingMessage::LeaveRoom(room)) => {
+                    let mut leave_room: Room = rooms.lock().await.get(&room.code).unwrap().clone();
+                    leave_room.users.remove(&ref_user.uuid);
 
+                    broadcast(
+                        users_ws_streams.clone(),
+                        leave_room.users.into_values().collect(),
+                        serde_json::to_string(&UserMessage {
+                            user: Some(ref_user.clone()),
+                            message: "*Leaving Room*".to_string(),
+                            datetime: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+                            room: room.code,
+                        })
+                        .expect("serialize user message"),
+                    )
+                    .await;
+                }
                 Ok(IncomingMessage::UserMessage(mut user_message)) => {
                     user_message.user = Some(ref_user.clone());
                     user_message.datetime = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
                     let room: Room = rooms.lock().await.get(&user_message.room).unwrap().clone();
                     room.clone().messages.push(user_message.clone());
+                    let users_to_bc = room.users.into_values().collect();
                     broadcast(
                         users_ws_streams.clone(),
-                        room.users.clone(),
-                        BroadCastMessage::UserMessage(user_message.clone()),
+                        users_to_bc,
+                        serde_json::to_string(&user_message.clone())
+                            .expect("serialize user message"),
                     )
                     .await;
                 }
@@ -174,13 +196,14 @@ async fn handle_connection(
                     let deleted_room: Room = rooms.lock().await.remove(&delete_room.room).unwrap();
                     broadcast(
                         users_ws_streams.clone(),
-                        deleted_room.users.clone(),
-                        BroadCastMessage::UserMessage(UserMessage {
-                            user: Some(ref_user.clone()),
-                            message: "room deleted".to_owned(),
-                            datetime: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-                            room: delete_room.room.clone(),
-                        }),
+                        deleted_room.users.into_values().collect(),
+                        serde_json::to_string(&ServerResponse {
+                            for_action: Action::DeleteRoom,
+                            res_type: ResType::Success,
+                            message: serde_json::to_string(&deleted_room.info.base_info.clone())
+                                .expect("serialize room"),
+                        })
+                        .expect("serialize user message"),
                     )
                     .await;
                 }
@@ -211,30 +234,22 @@ async fn handle_connection(
 async fn broadcast(
     users_ws_streams: Arc<Mutex<HashMap<Uuid, (User, Arc<Mutex<WebSocketStream<TcpStream>>>)>>>,
     users_to_bc: Vec<User>,
-    message: BroadCastMessage,
+    message: String,
 ) {
-    match message {
-        BroadCastMessage::UserMessage(user_message) => {
-            for user in users_to_bc {
-                let ws_stream = users_ws_streams
-                    .lock()
-                    .await
-                    .get(&Uuid::parse_str(&user.uuid.unwrap()).unwrap())
-                    .unwrap()
-                    .1
-                    .clone();
-                let message =
-                    serde_json::to_string(&user_message).expect("serialize message on broadcast");
-                ws_stream
-                    .lock()
-                    .await
-                    .send(Message::from(message))
-                    .await
-                    .expect("broadcast message");
-            }
-        }
-        BroadCastMessage::ServerMessage(_server_message) => {
-            todo!("Implement ServerMessage broadcast")
-        }
+    for user in users_to_bc {
+        let ws_stream = users_ws_streams
+            .lock()
+            .await
+            .get(&Uuid::parse_str(&user.uuid).unwrap())
+            .unwrap()
+            .1
+            .clone();
+
+        ws_stream
+            .lock()
+            .await
+            .send(Message::from(message.clone()))
+            .await
+            .expect("broadcast message");
     }
 }
