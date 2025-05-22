@@ -1,7 +1,7 @@
 use crate::infra::models::{AcessRoom, CreateRoom, DeleteRoom, User, UserMessage};
 use serde::{Deserialize, Serialize};
 
-use super::models::{LeaveRoom, ServerResponse};
+use super::models::LeaveRoom;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]

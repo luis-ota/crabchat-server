@@ -14,12 +14,12 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::{WebSocketStream, accept_async};
 use uuid::Uuid;
 
+type UserWsStream = (User, Arc<Mutex<WebSocketStream<TcpStream>>>);
+type UsersWsStreams = Arc<Mutex<HashMap<Uuid, UserWsStream>>>;
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    let users_ws_steams = Arc::new(Mutex::new(HashMap::<
-        Uuid,
-        (User, Arc<Mutex<WebSocketStream<TcpStream>>>),
-    >::new()));
+    let users_ws_steams: UsersWsStreams = Arc::new(Mutex::new(HashMap::new()));
     let rooms = Arc::new(Mutex::new(HashMap::<String, Room>::new()));
 
     let addr = String::from("0.0.0.0:8080");
@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
 
 async fn handle_connection(
     stream: TcpStream,
-    users_ws_streams: Arc<Mutex<HashMap<Uuid, (User, Arc<Mutex<WebSocketStream<TcpStream>>>)>>>,
+    users_ws_streams: UsersWsStreams,
     rooms: Arc<Mutex<HashMap<String, Room>>>,
 ) -> Result<()> {
     let ws_stream = Arc::new(Mutex::new(accept_async(stream).await?));
@@ -57,7 +57,7 @@ async fn handle_connection(
                     users_ws_streams
                         .lock()
                         .await
-                        .insert(uuid.clone(), (ref_user.clone(), ws_stream.clone()));
+                        .insert(uuid, (ref_user.clone(), ws_stream.clone()));
                     let avaliable_rooms: Vec<_> = rooms
                         .lock()
                         .await
@@ -134,7 +134,7 @@ async fn handle_connection(
                                         info: CreateRoom {
                                             base_info: acess_room.info.base_info.clone(),
                                             password: None,
-                                            public: acess_room.info.public.clone(),
+                                            public: acess_room.info.public,
                                         },
                                     })
                                     .unwrap(),
@@ -231,11 +231,7 @@ async fn handle_connection(
     Ok(())
 }
 
-async fn broadcast(
-    users_ws_streams: Arc<Mutex<HashMap<Uuid, (User, Arc<Mutex<WebSocketStream<TcpStream>>>)>>>,
-    users_to_bc: Vec<User>,
-    message: String,
-) {
+async fn broadcast(users_ws_streams: UsersWsStreams, users_to_bc: Vec<User>, message: String) {
     for user in users_to_bc {
         let ws_stream = users_ws_streams
             .lock()
