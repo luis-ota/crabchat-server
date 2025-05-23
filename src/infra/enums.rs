@@ -1,7 +1,22 @@
-use crate::infra::models::{AcessRoom, CreateRoom, DeleteRoom, User, UserMessage};
+use crate::infra::models::{AcessRoom, CreateRoom, DeleteRoom, ServerMessage, User, UserMessage};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use super::models::LeaveRoom;
+
+#[derive(Error, Debug)]
+pub enum ServerError {
+    #[error("serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
+    #[error("websocket error: {0}")]
+    WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
+    #[error("room not found: {0}")]
+    RoomNotFound(String),
+    #[error("incorrect room password")]
+    IncorrectPassword,
+    #[error("user already exists")]
+    UserAlreadyExists,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
@@ -14,11 +29,18 @@ pub enum IncomingMessage {
     UserMessage(UserMessage),
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum BroadCastMessage {
+    UserMessage(UserMessage),
+    ServerMessage(ServerMessage),
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum ResType {
     Success,
-    Error,
+    ServerError,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

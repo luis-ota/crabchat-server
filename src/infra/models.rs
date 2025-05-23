@@ -61,7 +61,7 @@ pub struct UpdateRoomInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerResponse {
+pub struct ServerMessage {
     pub for_action: Action,
     pub res_type: ResType,
     pub message: String,
