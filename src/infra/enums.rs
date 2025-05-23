@@ -25,6 +25,7 @@ pub enum ResType {
 #[serde(tag = "type", content = "data")]
 pub enum Action {
     Connect,
+    InvalidRequest,
     CreateRoom,
     DeleteRoom,
     AcessRoom,

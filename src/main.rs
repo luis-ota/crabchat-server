@@ -208,21 +208,37 @@ async fn handle_connection(
                     .await;
                 }
 
-                Err(e) => {
-                    let res = ServerResponse {
-                        for_action: Action::Connect,
-                        res_type: ResType::Error,
-                        message: e.to_string(),
-                    };
+                // Err(e) => {
+                //     let res = ServerResponse {
+                //         for_action: Action::Connect,
+                //         res_type: ResType::Error,
+                //         message: e.to_string(),
+                //     };
 
+                //     ws_stream
+                //         .lock()
+                //         .await
+                //         .send(Message::from(
+                //             serde_json::to_string(&res).expect("serialize rooms"),
+                //         ))
+                //         .await
+                //         .expect("Sendo error message");
+                // }
+                _ => {
+                    println!("Message does not follow any pattern: {text}");
                     ws_stream
                         .lock()
                         .await
                         .send(Message::from(
-                            serde_json::to_string(&res).expect("serialize rooms"),
+                            serde_json::to_string(&ServerResponse {
+                                for_action: Action::InvalidRequest,
+                                res_type: ResType::Error,
+                                message: "Message does not follow any pattern: {text}".to_string(),
+                            })
+                            .expect("serialize res"),
                         ))
                         .await
-                        .expect("Sendo error message");
+                        .expect("Fails to send server res");
                 }
             }
         }
