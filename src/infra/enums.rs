@@ -12,10 +12,14 @@ pub enum ServerError {
     WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
     #[error("room not found: {0}")]
     RoomNotFound(String),
+    #[error("user not found: {0}")]
+    UserNotFound(String),
+    #[error("invalid uuid: {0}")]
+    InvalidUuid(String),
     #[error("incorrect room password")]
     IncorrectPassword,
-    #[error("user already exists")]
-    UserAlreadyExists,
+    #[error("you need to pass the User struct fist")]
+    UnauthorizedMethod,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

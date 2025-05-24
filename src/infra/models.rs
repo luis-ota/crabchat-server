@@ -55,6 +55,16 @@ pub struct Room {
     pub users: HashMap<String, User>,
 }
 
+impl Room {
+    pub fn public_info(&self) -> CreateRoom {
+        CreateRoom {
+            base_info: self.info.base_info.clone(),
+            password: None,
+            public: self.info.public,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateRoomInfo {
     pub base_info: BaseRoomInfo,
