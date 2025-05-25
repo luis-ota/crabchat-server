@@ -19,7 +19,7 @@ pub enum ServerError {
     #[error("incorrect room password")]
     IncorrectPassword,
     #[error("you need to pass the User struct fist")]
-    UnauthorizedMethod,
+    Unauthorized,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

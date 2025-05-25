@@ -3,6 +3,17 @@ use std::collections::HashMap;
 use crate::infra::enums::{Action, ResType};
 use serde::{Deserialize, Serialize};
 
+use super::enums::ServerError;
+
+pub trait ToJson {
+    fn to_json(&self) -> Result<String, ServerError>
+    where
+        Self: Serialize,
+    {
+        serde_json::to_string(self).map_err(ServerError::Serialization)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct User {
     pub name: String,
@@ -17,6 +28,8 @@ pub struct UserMessage {
     pub room: String,
 }
 
+impl ToJson for UserMessage {}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaseRoomInfo {
     pub code: String,
@@ -30,10 +43,11 @@ pub struct CreateRoom {
     pub password: Option<String>,
     pub public: bool,
 }
+impl ToJson for CreateRoom {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteRoom {
-    pub room: String,
+    pub code: String,
     pub password: Option<String>,
 }
 
@@ -76,3 +90,5 @@ pub struct ServerMessage {
     pub res_type: ResType,
     pub message: String,
 }
+
+impl ToJson for ServerMessage {}
