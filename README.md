@@ -24,7 +24,7 @@ Crab Chat Server is a real-time chat application built using Rust and WebSocket 
 
 ### Prerequisites
 
-*   Rust toolchain (including Cargo)
+*   [Rust toolchain](https://rustup.rs/)
 *   [Tokio](https://tokio.rs/)
 *   [Tungstenite](https://github.com/snapview/tungstenite-rs)
 
