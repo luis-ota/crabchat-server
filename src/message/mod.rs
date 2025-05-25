@@ -26,33 +26,37 @@ pub async fn process_message(
     rooms: &SharedRooms,
     ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
 ) -> Result<(), ServerError> {
-    let user = check_session(current_user).await?;
-
     match msg {
         IncomingMessage::User(user_data) => {
             register_user(current_user, user_data, user_id, users, ws_sender).await?;
             send_rooms(rooms, ws_sender).await?;
         }
-        IncomingMessage::CreateRoom(room_data) => {
-            create_room(user, room_data, rooms, ws_sender).await?;
-        }
-        IncomingMessage::AcessRoom(room_access) => {
-            acess_room(user, room_access, rooms, users, ws_sender).await?;
-        }
-        IncomingMessage::LeaveRoom(room_leave) => {
-            leave_room(user, rooms, users, &room_leave).await?;
-        }
+        _ => {
+            let user = check_session(current_user).await?;
 
-        IncomingMessage::DeleteRoom(room_delete) => {
-            delete_room(user, ws_sender, users, rooms, &room_delete).await?;
-        }
-        IncomingMessage::UserMessage(user_message) => {
-            broadcast(
-                users,
-                get_room_users(rooms, &user_message.room).await?,
-                user_message.to_json()?,
-            )
-            .await?
+            match msg {
+                IncomingMessage::CreateRoom(room_data) => {
+                    create_room(user, room_data, rooms, ws_sender).await?;
+                }
+                IncomingMessage::AcessRoom(room_access) => {
+                    acess_room(user, room_access, rooms, users, ws_sender).await?;
+                }
+                IncomingMessage::LeaveRoom(room_leave) => {
+                    leave_room(user, rooms, users, &room_leave).await?;
+                }
+                IncomingMessage::DeleteRoom(room_delete) => {
+                    delete_room(user, ws_sender, users, rooms, &room_delete).await?;
+                }
+                IncomingMessage::UserMessage(user_message) => {
+                    broadcast(
+                        users,
+                        get_room_users(rooms, &user_message.room).await?,
+                        user_message.to_json()?,
+                    )
+                    .await?
+                }
+                IncomingMessage::User(_) => unreachable!("This case is already handled"),
+            }
         }
     }
     Ok(())
