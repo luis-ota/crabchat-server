@@ -16,8 +16,6 @@ pub enum ServerError {
     UserNotFound(String),
     #[error("invalid uuid: {0}")]
     InvalidUuid(String),
-    #[error("incorrect room password")]
-    IncorrectPassword,
     #[error("you need to pass the User struct fist")]
     Unauthorized,
 }
@@ -45,13 +43,14 @@ pub enum BroadCastMessage {
 pub enum ResType {
     Success,
     ServerError,
+    InvalidRequest,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum Action {
     Connect,
-    InvalidRequest,
+    Request,
     CreateRoom,
     DeleteRoom,
     AcessRoom,
