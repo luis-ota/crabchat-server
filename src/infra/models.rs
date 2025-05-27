@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use crate::infra::enums::{Action, ResType};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use super::enums::ServerError;
 
