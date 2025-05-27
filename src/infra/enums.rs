@@ -1,4 +1,4 @@
-use crate::infra::models::{AcessRoom, CreateRoom, DeleteRoom, ServerMessage, User, UserMessage};
+use crate::infra::models::{AccessRoom, CreateRoom, DeleteRoom, ServerMessage, User, UserMessage};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -26,7 +26,7 @@ pub enum IncomingMessage {
     User(User),
     CreateRoom(CreateRoom),
     DeleteRoom(DeleteRoom),
-    AcessRoom(AcessRoom),
+    AcessRoom(AccessRoom),
     LeaveRoom(LeaveRoom),
     UserMessage(UserMessage),
 }

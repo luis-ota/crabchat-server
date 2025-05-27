@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::infra::enums::{Action, ResType};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use super::enums::ServerError;
@@ -25,7 +26,18 @@ pub struct UserMessage {
     pub user: Option<User>,
     pub message: String,
     pub datetime: String,
-    pub room: String,
+    pub room_code: String,
+}
+
+impl UserMessage {
+    pub fn new(user: &User, message: &str, room_code: &String) -> Result<Self, ServerError> {
+        Ok(Self {
+            user: Some(user.to_owned()),
+            message: message.to_string(),
+            datetime: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            room_code: room_code.to_string(),
+        })
+    }
 }
 
 impl ToJson for UserMessage {}
@@ -52,8 +64,8 @@ pub struct DeleteRoom {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AcessRoom {
-    pub code: String,
+pub struct AccessRoom {
+    pub room_code: String,
     pub password: Option<String>,
 }
 

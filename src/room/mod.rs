@@ -1,6 +1,4 @@
 use std::{collections::HashMap, sync::Arc};
-
-use chrono::Utc;
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::WebSocketStream;
 use tracing::info;
@@ -8,7 +6,7 @@ use tracing::info;
 use crate::{
     infra::{
         enums::{Action, ResType, ServerError},
-        models::{AcessRoom, CreateRoom, DeleteRoom, LeaveRoom, Room, ToJson, User, UserMessage},
+        models::{AccessRoom, CreateRoom, DeleteRoom, LeaveRoom, Room, ToJson, User, UserMessage},
     },
     message::{broadcast, server_response},
     types::{SharedRooms, SharedUsers},
@@ -61,6 +59,7 @@ pub async fn delete_room(
                 users,
                 get_room_users(rooms, &room_delete.code).await?,
                 "this room was deleted".to_string(),
+                None,
             )
             .await?;
         } else {
@@ -109,17 +108,17 @@ async fn get_room(rooms: &SharedRooms, code: &String) -> Result<Room, ServerErro
 
 pub async fn acess_room(
     user: &User,
-    acess_room: AcessRoom,
+    acess_room: AccessRoom,
     rooms: &SharedRooms,
     users: &SharedUsers,
     ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
 ) -> Result<(), ServerError> {
     info!(
         "User {:?} required acess to room {:?}",
-        user, acess_room.code
+        user, acess_room.room_code
     );
 
-    let mut room = get_room(rooms, &acess_room.code).await?;
+    let mut room = get_room(rooms, &acess_room.room_code).await?;
 
     if room.info.password.eq(&acess_room.password) {
         room.users.insert(user.uuid.clone(), user.to_owned());
@@ -134,17 +133,13 @@ pub async fn acess_room(
         )
         .await?;
 
-        let user_message = UserMessage {
-            user: Some(user.to_owned()),
-            message: "joined room".to_string(),
-            datetime: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-            room: acess_room.code.to_owned(),
-        };
+        let user_message = UserMessage::new(user, "joined room", &acess_room.room_code)?;
 
         broadcast(
             users,
-            get_room_users(rooms, &acess_room.code).await?,
+            get_room_users(rooms, &acess_room.room_code).await?,
             user_message.to_json()?,
+            None,
         )
         .await?;
     } else {
@@ -168,16 +163,13 @@ pub async fn leave_room(
     let mut room = get_room(rooms, &leave_room.code).await?;
 
     room.users.remove(&user.uuid);
-    let message = UserMessage {
-        user: Some(user.to_owned()),
-        message: "leaved room".to_string(),
-        datetime: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-        room: leave_room.code.to_owned(),
-    };
+    let message = UserMessage::new(user, "leaved room", &leave_room.code)?;
+
     broadcast(
         users,
         get_room_users(rooms, &leave_room.code).await?,
         message.to_json()?,
+        None,
     )
     .await?;
 

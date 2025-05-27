@@ -50,12 +50,13 @@ pub async fn process_message(
                 IncomingMessage::UserMessage(user_message) => {
                     broadcast(
                         users,
-                        get_room_users(rooms, &user_message.room).await?,
+                        get_room_users(rooms, &user_message.room_code).await?,
                         user_message.to_json()?,
+                        Some(vec![user]),
                     )
                     .await?
                 }
-                IncomingMessage::User(_) => unreachable!("This case is already handled"),
+                IncomingMessage::User(_) => unreachable!("this case is already handled"),
             }
         }
     }
@@ -113,11 +114,20 @@ pub async fn broadcast(
     users_ws_streams: &SharedUsers,
     users_to_bc: Vec<User>,
     message: String,
+    skip: Option<Vec<&User>>,
 ) -> Result<(), ServerError> {
     let users_sw_lock = users_ws_streams.lock().await;
 
     for user in users_to_bc {
-        let uuid = Uuid::from_str(&user.uuid).map_err(|_| ServerError::InvalidUuid(user.uuid))?;
+        let uuid = Uuid::from_str(&user.uuid)
+            .map_err(|_| ServerError::InvalidUuid(user.uuid.to_owned()))?;
+
+        if let Some(ref skips) = skip {
+            if skips.iter().any(|u| u.uuid == user.uuid) {
+                continue;
+            }
+        }
+
         let ws_sender = users_sw_lock
             .get(&uuid)
             .ok_or(ServerError::UserNotFound(user.name))?;
