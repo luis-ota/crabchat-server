@@ -11,7 +11,7 @@ use crate::{
     auth::{check_session, register_user},
     infra::{
         enums::{Action, IncomingMessage, ResType, ServerError},
-        models::{CreateRoom, ServerMessage, ToJson, User},
+        models::{AvaliableRoom, ServerMessage, ToJson, User},
     },
     room::{acess_room, create_room, delete_room, get_room_users, leave_room},
     types::{SharedRooms, SharedUsers},
@@ -89,12 +89,16 @@ pub async fn send_rooms(
     rooms: &SharedRooms,
     ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
 ) -> Result<(), ServerError> {
-    let avaliable_rooms: Vec<CreateRoom> = rooms
+    let avaliable_rooms: Vec<AvaliableRoom> = rooms
         .lock()
         .await
         .values()
         .filter(|r| r.info.public)
-        .map(|r| r.public_info())
+        .map(|r| AvaliableRoom {
+            info: r.public_info(),
+            users_count: r.users.len() as u64,
+            has_password: r.info.password.is_some(),
+        })
         .collect();
 
     let avaliable_rooms_json =

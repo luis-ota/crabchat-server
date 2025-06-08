@@ -80,6 +80,13 @@ pub struct Room {
     pub users: HashMap<String, User>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AvaliableRoom {
+    pub info: CreateRoom,
+    pub users_count: u64,
+    pub has_password: bool,
+}
+
 impl Room {
     pub fn public_info(&self) -> CreateRoom {
         CreateRoom {
