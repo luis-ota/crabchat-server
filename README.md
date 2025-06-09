@@ -11,6 +11,13 @@ Crab Chat Server is a real-time chat application built using Rust and WebSocket 
 *   **Room Management:** Users can create, delete, access, and leave chat rooms.
 *   **Public and Private Rooms:**  Rooms can be either public or private.
 
+## How to run
+- `-p` or `--port` to pass the port
+
+```sh
+crabchatserver -p <port>
+```
+
 ## Technologies Used
 
 *   **Rust:** The primary programming language.
