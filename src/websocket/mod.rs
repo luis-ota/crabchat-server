@@ -22,13 +22,17 @@ pub async fn handle_connection(
     users: SharedUsers,
     rooms: Arc<Mutex<HashMap<String, Room>>>,
 ) -> Result<(), ServerError> {
-    let ws_stream = Arc::new(Mutex::new(accept_async(stream).await?));
+    let ws_stream = accept_async(stream).await?;
+    let (ws, wr) = ws_stream.split();
+    let ws_stream = Arc::new(Mutex::new(ws));
+    let ws_reciver = Arc::new(Mutex::new(wr));
+
     info!("conexão websocket estabelecida com sucesso.");
 
     let user_id = Uuid::new_v4();
     let mut current_user: Option<User> = None;
 
-    while let Some(msg) = ws_stream.lock().await.next().await {
+    while let Some(msg) = ws_reciver.lock().await.next().await {
         if let Ok(Message::Text(text)) = msg {
             match serde_json::from_str::<IncomingMessage>(&text) {
                 Ok(incoming_message) => {
@@ -70,6 +74,7 @@ pub async fn handle_connection(
             }
         }
     }
+    info!("{:#?} thread was ended...", current_user);
 
     Ok(())
 }

@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use futures_util::stream::SplitSink;
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::WebSocketStream;
 use tracing::info;
+use tungstenite::Message;
 use uuid::Uuid;
 
 use crate::{
@@ -16,7 +18,7 @@ pub async fn register_user(
     user_data: User,
     user_id: &Uuid,
     users: &SharedUsers,
-    ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
+    ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
 ) -> Result<(), ServerError> {
     info!("Usuário se identificou: {:?}", user_data);
 

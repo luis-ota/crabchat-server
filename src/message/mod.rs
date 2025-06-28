@@ -1,9 +1,9 @@
 use std::{str::FromStr, sync::Arc};
 
-use futures_util::SinkExt;
+use futures_util::{SinkExt, stream::SplitSink};
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::WebSocketStream;
-use tracing::instrument;
+use tracing::{info, instrument};
 use tungstenite::Message;
 use uuid::Uuid;
 
@@ -24,7 +24,7 @@ pub async fn process_message(
     current_user: &mut Option<User>,
     users: &SharedUsers,
     rooms: &SharedRooms,
-    ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
+    ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
 ) -> Result<(), ServerError> {
     match msg {
         IncomingMessage::User(user_data) => {
@@ -64,7 +64,7 @@ pub async fn process_message(
 }
 
 pub async fn server_response(
-    ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
+    ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
     for_action: Action,
     res_type: ResType,
     message: String,
@@ -87,7 +87,7 @@ pub async fn server_response(
 
 pub async fn send_rooms(
     rooms: &SharedRooms,
-    ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
+    ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
 ) -> Result<(), ServerError> {
     let avaliable_rooms: Vec<AvaliableRoom> = rooms
         .lock()
@@ -103,7 +103,10 @@ pub async fn send_rooms(
 
     let avaliable_rooms_json =
         serde_json::to_string(&avaliable_rooms).map_err(ServerError::Serialization)?;
-
+    info!(
+        "trying to send avaliable rroms: {:#?}",
+        avaliable_rooms_json
+    );
     ws_sender
         .lock()
         .await
@@ -111,6 +114,7 @@ pub async fn send_rooms(
         .await
         .map_err(ServerError::WebSocket)?;
 
+    info!("the avalible rooms ware succefully sent");
     Ok(())
 }
 

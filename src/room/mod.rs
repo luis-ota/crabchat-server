@@ -1,7 +1,9 @@
+use futures_util::stream::SplitSink;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::WebSocketStream;
 use tracing::info;
+use tungstenite::Message;
 
 use crate::{
     infra::{
@@ -17,7 +19,7 @@ pub async fn create_room(
 
     room_data: CreateRoom,
     rooms: &SharedRooms,
-    ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
+    ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
 ) -> Result<(), ServerError> {
     info!("Received room: {:?}", room_data);
 
@@ -46,7 +48,7 @@ pub async fn create_room(
 
 pub async fn delete_room(
     user: &User,
-    ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
+    ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
     users: &SharedUsers,
     rooms: &SharedRooms,
     room_delete: &DeleteRoom,
@@ -111,7 +113,7 @@ pub async fn acess_room(
     acess_room: AccessRoom,
     rooms: &SharedRooms,
     users: &SharedUsers,
-    ws_sender: &Arc<Mutex<WebSocketStream<TcpStream>>>,
+    ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
 ) -> Result<(), ServerError> {
     info!(
         "User {:?} required acess to room {:?}",
