@@ -1,4 +1,6 @@
-use crate::infra::models::{AccessRoom, CreateRoom, DeleteRoom, ServerMessage, User, UserMessage};
+use crate::infra::models::{
+    AccessRoom, AvailableRoom, CreateRoom, DeleteRoom, ServerMessage, ToJson, User, UserMessage,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -33,10 +35,13 @@ pub enum IncomingMessage {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
-pub enum BroadCastMessage {
+pub enum ServerResponse {
     UserMessage(UserMessage),
     ServerMessage(ServerMessage),
+    AvailableRooms(Vec<AvailableRoom>),
 }
+
+impl ToJson for ServerResponse {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]

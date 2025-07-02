@@ -39,7 +39,7 @@ crabchatserver -p <port>
 ## Project Structure
 
 *   `src/`: Contains the source code.
-    *   `auth/`: Authentication-related modules.
+    *   `auth/`: Authentication-related logic.
     *   `infra/`: Infrastructure code (enums, models).
     *   `message/`: Message processing logic.
     *   `room/`: Room management logic.

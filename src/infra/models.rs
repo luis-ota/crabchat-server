@@ -81,7 +81,7 @@ pub struct Room {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AvaliableRoom {
+pub struct AvailableRoom {
     pub info: CreateRoom,
     pub users_count: u64,
     pub has_password: bool,

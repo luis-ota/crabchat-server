@@ -3,15 +3,15 @@ use std::{str::FromStr, sync::Arc};
 use futures_util::{SinkExt, stream::SplitSink};
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::WebSocketStream;
-use tracing::{info, instrument};
+use tracing::instrument;
 use tungstenite::Message;
 use uuid::Uuid;
 
 use crate::{
     auth::{check_session, register_user},
     infra::{
-        enums::{Action, IncomingMessage, ResType, ServerError},
-        models::{AvaliableRoom, ServerMessage, ToJson, User},
+        enums::{Action, IncomingMessage, ResType, ServerError, ServerResponse},
+        models::{AvailableRoom, ServerMessage, ToJson, User},
     },
     room::{acess_room, create_room, delete_room, get_room_users, leave_room},
     types::{SharedRooms, SharedUsers},
@@ -51,7 +51,7 @@ pub async fn process_message(
                     broadcast(
                         users,
                         get_room_users(rooms, &user_message.room_code).await?,
-                        user_message.to_json()?,
+                        ServerResponse::UserMessage(user_message).to_json()?,
                         Some(vec![user]),
                     )
                     .await?
@@ -73,11 +73,11 @@ pub async fn server_response(
         .lock()
         .await
         .send(Message::from(
-            ServerMessage {
+            ServerResponse::ServerMessage(ServerMessage {
                 for_action,
                 res_type,
                 message,
-            }
+            })
             .to_json()?,
         ))
         .await
@@ -89,24 +89,23 @@ pub async fn send_rooms(
     rooms: &SharedRooms,
     ws_sender: &Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
 ) -> Result<(), ServerError> {
-    let avaliable_rooms: Vec<AvaliableRoom> = rooms
+    let avaliable_rooms: Vec<AvailableRoom> = rooms
         .lock()
         .await
         .values()
         .filter(|r| r.info.public)
-        .map(|r| AvaliableRoom {
+        .map(|r| AvailableRoom {
             info: r.public_info(),
             users_count: r.users.len() as u64,
             has_password: r.info.password.is_some(),
         })
         .collect();
 
-    let avaliable_rooms_json =
-        serde_json::to_string(&avaliable_rooms).map_err(ServerError::Serialization)?;
-    info!(
-        "trying to send avaliable rroms: {:#?}",
-        avaliable_rooms_json
-    );
+    let avaliable_rooms_json = ServerResponse::AvailableRooms(avaliable_rooms).to_json()?;
+    // info!(
+    //     "trying to send avaliable rroms: {:#?}",
+    //     avaliable_rooms_json
+    // );
     ws_sender
         .lock()
         .await
@@ -114,7 +113,7 @@ pub async fn send_rooms(
         .await
         .map_err(ServerError::WebSocket)?;
 
-    info!("the avalible rooms ware succefully sent");
+    // info!("the avalible rooms were succefully sent");
     Ok(())
 }
 
