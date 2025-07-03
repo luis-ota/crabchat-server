@@ -101,6 +101,8 @@ pub async fn send_rooms(
         })
         .collect();
 
+    // avaliable_rooms = vec![AvailableRoom::default()];
+
     let avaliable_rooms_json = ServerResponse::AvailableRooms(avaliable_rooms).to_json()?;
     // info!(
     //     "trying to send avaliable rroms: {:#?}",

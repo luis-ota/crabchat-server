@@ -14,7 +14,7 @@ pub trait ToJson {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct User {
     pub name: String,
     pub uuid: String,
@@ -41,14 +41,14 @@ impl UserMessage {
 
 impl ToJson for UserMessage {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BaseRoomInfo {
     pub code: String,
     pub name: String,
     pub created_by: User,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CreateRoom {
     pub base_info: BaseRoomInfo,
     pub password: Option<String>,
@@ -80,7 +80,7 @@ pub struct Room {
     pub users: HashMap<String, User>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AvailableRoom {
     pub info: CreateRoom,
     pub users_count: u64,
